@@ -1,8 +1,5 @@
 .bundle
-delivery/*
-!delivery/README.md
-!delivery/install.sh
-!delivery/update.sh
+delivery/pitft
 rpi/*/*
 rpi/*
 rpi
