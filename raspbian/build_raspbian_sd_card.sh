@@ -57,19 +57,76 @@
 # you need at least
 # apt-get install binfmt-support qemu qemu-user-static debootstrap kpartx lvm2 dosfstools
 
+function usage()
+{
+    cat <<-__EOF__
+Usage: build_raspbian_sd_card.sh <options>...
+Builds a custom SD card for the Raspberry Pi.
+
+Options are:
+    --fancy-sauce-use-cache:    Makes use of fancy-sauce cache. Path to fancy-sauce cache must be specified.
+    --fancy-sauce-build-cache:  Builds fancy-sauce cache. Path to fancy-sauce must be specified.
+                                A valid config for fancy sauce must also exist.
+    --device:                   Build directly onto a SD card instead of creating a image.
+__EOF__
+}
+
+if [ ${EUID} -ne 0 ]; then
+    echo "this tool must be run as root"
+    exit 1
+fi
+
+sauce_path=""
+device=""
+build_sauce_cache=0
 deb_mirror="http://archive.raspbian.org/raspbian"
 deb_local_mirror="http://localhost:3142/archive.raspbian.org/raspbian"
 
-if [ ${EUID} -ne 0 ]; then
-  echo "this tool must be run as root"
-  exit 1
-fi
+while [[ $# > 0 ]]
+do
+    key="$1"
+    shift
 
-device=$1
-if ! [ -b ${device} ]; then
-  echo "${device} is not a block device"
-  exit 1
-fi
+    case $key in
+        --fancy-sauce-build-cache)
+        if [ "x${1}" == "x" ]; then
+            echo "Path to fancy sauce missing"
+            usage
+            exit 1
+        fi
+        sauce_path=$1
+        build_sauce_cache=1
+        shift
+        ;;
+        --fancy-sauce-use-cache)
+        if [ "x${1}" == "x" ]; then
+            echo "Path to cache missing"
+            usage
+            exit 1
+        fi
+        sauce_cache_path=$1
+        deb_mirror="file://${sauce_cache_path}"
+        deb_local_mirror="file://${sauce_cache_path}"
+        shift
+        ;;
+        --device)
+        device=$1
+        if ! [ -b ${device} ]; then
+            echo "${device} is not a block device"
+            exit 1
+        fi
+        shift
+        ;;
+        *)
+        usage
+        exit 1
+        ;;
+        -h|--help)
+        usage
+        exit 1
+        ;;
+    esac
+done
 
 if [ "${deb_local_mirror}" == "" ]; then
   deb_local_mirror=${deb_mirror}
@@ -150,6 +207,19 @@ fi
 mkfs.vfat ${bootp}
 mkfs.ext4 ${rootp}
 
+umount -l ${bootp}
+
+umount -l ${rootfs}/opt/fancy-sauce
+umount -l ${rootfs}/usr/src/delivery
+umount -l ${rootfs}/dev/pts
+umount -l ${rootfs}/dev
+umount -l ${rootfs}/sys
+umount -l ${rootfs}/proc
+
+umount -l ${rootfs}
+umount -l ${rootp}
+
+
 mkdir -p ${rootfs}
 
 mount ${rootp} ${rootfs}
@@ -159,12 +229,18 @@ mkdir -p ${rootfs}/sys
 mkdir -p ${rootfs}/dev
 mkdir -p ${rootfs}/dev/pts
 mkdir -p ${rootfs}/usr/src/delivery
+if [[ "${sauce_path}" != "" ]]; then
+    mkdir -p ${rootfs}/opt/fancy-sauce
+fi
 
 mount -t proc none ${rootfs}/proc
 mount -t sysfs none ${rootfs}/sys
 mount -o bind /dev ${rootfs}/dev
 mount -o bind /dev/pts ${rootfs}/dev/pts
 mount -o bind ${delivery_path} ${rootfs}/usr/src/delivery
+if [[ "${sauce_path}" != "" ]]; then
+    mount -o bind ${sauce_path} ${rootfs}/opt/fancy-sauce
+fi
 
 cd ${rootfs}
 
@@ -175,6 +251,7 @@ LANG=C chroot ${rootfs} /debootstrap/debootstrap --second-stage
 mount ${bootp} ${bootfs}
 
 echo "deb ${deb_local_mirror} ${deb_release} main contrib non-free
+deb-src ${deb_local_mirror} ${deb_release} main contrib non-free
 " > etc/apt/sources.list
 
 echo "dwc_otg.lpm_enable=0 console=ttyAMA0,115200 kgdboc=ttyAMA0,115200 console=tty1 root=/dev/mmcblk0p2 rootfstype=ext4 rootwait" > boot/cmdline.txt
@@ -220,7 +297,22 @@ apt-get -y install locales console-common ntp openssh-server less vim
 # execute install script at mounted external media (delivery contents folder)
 cd /usr/src/delivery
 ./install.sh
+echo "INSTALL DONE"
 cd
+
+if [ ${build_sauce_cache} -eq 1 ]
+then
+    echo "Starting fancy sauce"
+    cd /opt/fancy-sauce
+    echo "Preparing fancy-sauce"
+    ./prereqs.sh
+
+    echo "Building package manifest"
+    ./build_installed_manifest.sh
+
+    echo "Downloading packages"
+    ./download_package.sh
+fi
 
 echo \"root:raspberry\" | chpasswd
 sed -i -e 's/KERNEL\!=\"eth\*|/KERNEL\!=\"/' /lib/udev/rules.d/75-persistent-net-generator.rules
@@ -249,14 +341,15 @@ sleep 15
 
 umount -l ${bootp}
 
+umount -l ${rootfs}/opt/fancy-sauce
 umount -l ${rootfs}/usr/src/delivery
 umount -l ${rootfs}/dev/pts
 umount -l ${rootfs}/dev
 umount -l ${rootfs}/sys
 umount -l ${rootfs}/proc
 
-umount -l ${rootfs}
-umount -l ${rootp}
+#umount -l ${rootfs}
+#umount -l ${rootp}
 
 echo "finishing ${image}"
 
