@@ -1,12 +1,12 @@
-#!/bin/sh
+#!/bin/bash
 
 echo "------------------------------------------------------------------"
-echo "SSH: Setting Up"
+echo "Users: Setting Up"
 echo "------------------------------------------------------------------"
-update-rc.d ssh enable &&
-invoke-rc.d ssh start
-
+useradd pi
+echo "pi:raspberry" | chpasswd
+chsh -s /bin/bash pi
 
 echo "------------------------------------------------------------------"
-echo "SSH: Done"
+echo "Users: Done"
 echo "------------------------------------------------------------------"

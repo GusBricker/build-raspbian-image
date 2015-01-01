@@ -1,22 +1,14 @@
-#!/bin/sh
+#!/bin/bash
 
 echo "------------------------------------------------------------------"
 echo "PiTFT: Install starting"
 echo "------------------------------------------------------------------"
 mkdir -p pitft
-cd pitft
+pushd pitft
 
 echo "------------------------------------------------------------------"
 echo "PiTFT: Getting packages"
 echo "------------------------------------------------------------------"
-
-GetFile()
-{
-	BASE_URL=$1
-	FILENAME=$2
-
-	wget -N "${BASE_URL}/${FILENAME}"
-}
 
 GetFile "http://adafruit-download.s3.amazonaws.com" "libraspberrypi-bin-adafruit.deb"
 GetFile "http://adafruit-download.s3.amazonaws.com" "libraspberrypi-dev-adafruit.deb"
@@ -64,7 +56,7 @@ echo "------------------------------------------------------------------"
 echo "PiTFT: Setting up Touchscreen"
 echo "------------------------------------------------------------------"
 
-apt-get -y install evtest tslib libts-bin
+AptInstall evtest tslib libts-bin
 
 mkdir -p /etc/udev/rules.d/
 echo 'SUBSYSTEM=="input", ATTRS{name}=="stmpe-ts", ENV{DEVNAME}=="*event*", SYMLINK+="input/touchscreen
@@ -85,4 +77,4 @@ echo "------------------------------------------------------------------"
 echo "PiTFT: Done"
 echo "------------------------------------------------------------------"
 
-cd ..
+popd

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 machine=`uname -m`
 if [ "${machine}" != "armv7l" ]; then
@@ -10,7 +10,5 @@ echo "Please check environment variables etc, this script can be executed ONLY w
 echo "When tasks done, type \"exit\" to return"
 echo ""
 
-./users.sh
-./ssh.sh
-./desktop.sh
-./pitft.sh
+source functions.sh
+DirectoryOrderedExecute "$(pwd)"
