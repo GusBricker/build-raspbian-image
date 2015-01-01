@@ -14,4 +14,3 @@ echo ""
 ./ssh.sh
 ./desktop.sh
 ./pitft.sh
-./bluetooth.sh
