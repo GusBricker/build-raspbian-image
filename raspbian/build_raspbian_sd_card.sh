@@ -81,6 +81,8 @@ device=""
 build_sauce_cache=0
 deb_mirror="http://archive.raspbian.org/raspbian"
 deb_local_mirror="http://localhost:3142/archive.raspbian.org/raspbian"
+sauce_cache_mnt_path="/opt/cache/"
+rootfs_mirror="${deb_local_mirror}"
 
 while [[ $# > 0 ]]
 do
@@ -96,6 +98,7 @@ do
         fi
         sauce_path=$1
         build_sauce_cache=1
+        echo "Building fancy sauce cache at: ${sauce_path}"
         shift
         ;;
         --fancy-sauce-use-cache)
@@ -107,6 +110,8 @@ do
         sauce_cache_path=$1
         deb_mirror="file://${sauce_cache_path}"
         deb_local_mirror="file://${sauce_cache_path}"
+        rootfs_mirror="file:${sauce_cache_mnt_path}"
+        echo "Using fancy sauce cache from: ${sauce_cache_path}"
         shift
         ;;
         --device)
@@ -209,7 +214,8 @@ mkfs.ext4 ${rootp}
 
 umount -l ${bootp}
 
-umount -l ${rootfs}/opt/fancy-sauce
+umount -l ${rootfs}/${sauce_cache_mnt_path}
+umount -l ${rootfs}${sauce_cache_mnt_path}
 umount -l ${rootfs}/usr/src/delivery
 umount -l ${rootfs}/dev/pts
 umount -l ${rootfs}/dev
@@ -229,8 +235,11 @@ mkdir -p ${rootfs}/sys
 mkdir -p ${rootfs}/dev
 mkdir -p ${rootfs}/dev/pts
 mkdir -p ${rootfs}/usr/src/delivery
+if [[ "${sauce_cache_path}" != "" ]]; then
+    mkdir -p ${rootfs}${sauce_cache_mnt_path}
+fi
 if [[ "${sauce_path}" != "" ]]; then
-    mkdir -p ${rootfs}/opt/fancy-sauce
+    mkdir -p ${rootfs}/${sauce_cache_mnt_path}
 fi
 
 mount -t proc none ${rootfs}/proc
@@ -238,8 +247,11 @@ mount -t sysfs none ${rootfs}/sys
 mount -o bind /dev ${rootfs}/dev
 mount -o bind /dev/pts ${rootfs}/dev/pts
 mount -o bind ${delivery_path} ${rootfs}/usr/src/delivery
+if [[ "${sauce_cache_path}" != "" ]]; then
+    mount -o bind ${sauce_cache_path} ${rootfs}${sauce_cache_mnt_path}
+fi
 if [[ "${sauce_path}" != "" ]]; then
-    mount -o bind ${sauce_path} ${rootfs}/opt/fancy-sauce
+    mount -o bind ${deb_mirror} ${rootfs}/${sauce_cache_mnt_path}
 fi
 
 cd ${rootfs}
@@ -250,9 +262,13 @@ LANG=C chroot ${rootfs} /debootstrap/debootstrap --second-stage
 
 mount ${bootp} ${bootfs}
 
-echo "deb ${deb_local_mirror} ${deb_release} main contrib non-free
-deb-src ${deb_local_mirror} ${deb_release} main contrib non-free
+if [[ "${sauce_cache_path}" != "" ]]; then
+    echo "deb ${rootfs_mirror} ${deb_release} main" > etc/apt/sources.list
+else
+    echo "deb ${rootfs_mirror} ${deb_release} main contrib non-free
+deb-src ${rootfs_mirror} ${deb_release} main contrib non-free
 " > etc/apt/sources.list
+fi
 
 echo "dwc_otg.lpm_enable=0 console=ttyAMA0,115200 kgdboc=ttyAMA0,115200 console=tty1 root=/dev/mmcblk0p2 rootfstype=ext4 rootwait" > boot/cmdline.txt
 
@@ -284,21 +300,21 @@ debconf-set-selections /debconf.set
 rm -f /debconf.set
 
 cd /usr/src/delivery
-apt-get update
-apt-get -y install git-core binutils ca-certificates
-wget --continue https://raw.github.com/Hexxeh/rpi-update/master/rpi-update -O /usr/bin/rpi-update
+source functions.sh
+AptUpdate
+AptInstall git-core binutils ca-certificates
+AptInstall curl locales console-common ntp openssh-server less vim
+
+curl -L -k --output "/usr/bin/rpi-update" https://github.com/Hexxeh/rpi-update/raw/master/rpi-update
 chmod +x /usr/bin/rpi-update
-mkdir -p /lib/modules/3.1.9+
+mkdir -p /lib/modules
 touch /boot/start.elf
 rpi-update
-
-apt-get -y install locales console-common ntp openssh-server less vim
 
 # execute install script at mounted external media (delivery contents folder)
 cd /usr/src/delivery
 ./install.sh
 echo "INSTALL DONE"
-cd
 
 if [ ${build_sauce_cache} -eq 1 ]
 then
@@ -341,6 +357,7 @@ sleep 15
 
 umount -l ${bootp}
 
+umount -l ${rootfs}/${sauce_cache_mnt_path}
 umount -l ${rootfs}/opt/fancy-sauce
 umount -l ${rootfs}/usr/src/delivery
 umount -l ${rootfs}/dev/pts
@@ -348,8 +365,8 @@ umount -l ${rootfs}/dev
 umount -l ${rootfs}/sys
 umount -l ${rootfs}/proc
 
-#umount -l ${rootfs}
-#umount -l ${rootp}
+umount -l ${rootfs}
+umount -l ${rootp}
 
 echo "finishing ${image}"
 
