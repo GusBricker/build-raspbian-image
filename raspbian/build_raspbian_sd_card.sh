@@ -71,6 +71,26 @@ Options are:
 __EOF__
 }
 
+function on_cancel()
+{
+    if [[ "${loop_device}" != "" ]]; then
+        echo "freeing loop device ${loop_device}"
+        losetup -d ${loop_device}
+    fi
+
+    if [[ "${image}" != "" ]]; then
+        kpartx -d ${image}
+        dmsetup remove_all
+        echo "creating ${image} cancelled"
+        losetup -d ${rootp}
+        losetup -d ${bootp}
+        echo "freeing loop device ${rootp}"
+        echo "freeing loop device ${bootp}"
+    fi
+
+    exit
+}
+
 if [ ${EUID} -ne 0 ]; then
     echo "this tool must be run as root"
     exit 1
@@ -78,6 +98,7 @@ fi
 
 sauce_path=""
 device=""
+loop_device=""
 build_sauce_cache=0
 deb_mirror="http://archive.raspbian.org/raspbian"
 deb_local_mirror="http://localhost:3142/archive.raspbian.org/raspbian"
@@ -133,6 +154,8 @@ do
     esac
 done
 
+trap on_cancel SIGHUP SIGINT SIGTERM
+
 if [ "${deb_local_mirror}" == "" ]; then
   deb_local_mirror=${deb_mirror}
 fi
@@ -162,12 +185,17 @@ today=`date +%Y%m%d`
 image=""
 
 if [ "${device}" == "" ]; then
-  echo "no block device given, just creating an image"
-  mkdir -p ${buildenv}
-  image="${buildenv}/images/raspbian_basic_${deb_release}_${today}.img"
-  dd if=/dev/zero of=${image} bs=1MB count=3800
-  device=`losetup -f --show ${image}`
-  echo "image ${image} created and mounted as ${device}"
+    echo "no block device given, just creating an image"
+    mkdir -p ${buildenv}
+    image="${buildenv}/images/raspbian_basic_${deb_release}_${today}.img"
+    dd if=/dev/zero of=${image} bs=1MB count=3800
+    loop_device=`losetup -f --show ${image}`
+    if [ $? -ne 0 ]; then
+        echo "no loop devices available, quitting"
+        exit 1
+    fi
+    echo "image ${image} created and mounted as ${loop_device}"
+    device=${loop_device}
 else
   dd if=/dev/zero of=${device} bs=512 count=1
 fi
@@ -190,23 +218,22 @@ EOF
 
 
 if [ "${image}" != "" ]; then
-  losetup -d ${device}
-  device=`kpartx -va ${image} | sed -E 's/.*(loop[0-9])p.*/\1/g' | head -1`
-  device="/dev/mapper/${device}"
-  bootp=${device}p1
-  rootp=${device}p2
-else
-  if ! [ -b ${device}1 ]; then
+    device=`kpartx -va ${image} | sed -E 's/.*(loop[0-9])p.*/\1/g' | head -1`
+    device="/dev/mapper/${device}"
     bootp=${device}p1
     rootp=${device}p2
-    if ! [ -b ${bootp} ]; then
-      echo "uh, oh, something went wrong, can't find bootpartition neither as ${device}1 nor as ${device}p1, exiting."
-      exit 1
+else
+    if ! [ -b ${device}1 ]; then
+        bootp=${device}p1
+        rootp=${device}p2
+        if ! [ -b ${bootp} ]; then
+            echo "uh, oh, something went wrong, can't find bootpartition neither as ${device}1 nor as ${device}p1, exiting."
+            exit 1
+        fi
+    else
+        bootp=${device}1
+        rootp=${device}2
     fi
-  else
-    bootp=${device}1
-    rootp=${device}2
-  fi
 fi
 
 mkfs.vfat ${bootp}
@@ -370,9 +397,19 @@ umount -l ${rootp}
 
 echo "finishing ${image}"
 
-if [ "${image}" != "" ]; then
-  kpartx -d ${image}
-  echo "created image ${image}"
+if [[ "${loop_device}" != "" ]]; then
+    echo "freeing loop device ${loop_device}"
+    losetup -d ${loop_device}
+fi
+
+if [[ "${image}" != "" ]]; then
+    kpartx -d ${image}
+    dmsetup remove_all
+    echo "created image ${image}"
+    echo "freeing loop device ${rootp}"
+    losetup -d ${rootp}
+    echo "freeing loop device ${bootp}"
+    losetup -d ${bootp}
 fi
 
 echo "done."
