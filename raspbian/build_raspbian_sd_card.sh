@@ -157,7 +157,7 @@ done
 trap on_cancel SIGHUP SIGINT SIGTERM
 
 if [ "${deb_local_mirror}" == "" ]; then
-  deb_local_mirror=${deb_mirror}
+    deb_local_mirror=${deb_mirror}
 fi
 
 bootsize="64M"
@@ -197,7 +197,7 @@ if [ "${device}" == "" ]; then
     echo "image ${image} created and mounted as ${loop_device}"
     device=${loop_device}
 else
-  dd if=/dev/zero of=${device} bs=512 count=1
+    dd if=/dev/zero of=${device} bs=512 count=1
 fi
 
 fdisk ${device} << EOF
