@@ -162,6 +162,7 @@ fi
 
 bootsize="64M"
 deb_release="wheezy"
+rootfs_fancy_sauce_dir="/opt/fancy-sauce"
 
 relative_path=`dirname $0`
 
@@ -241,8 +242,8 @@ mkfs.ext4 ${rootp}
 
 umount -l ${bootp}
 
-umount -l ${rootfs}/${sauce_cache_mnt_path}
 umount -l ${rootfs}${sauce_cache_mnt_path}
+umount -l ${rootfs}${rootfs_fancy_sauce_dir}
 umount -l ${rootfs}/usr/src/delivery
 umount -l ${rootfs}/dev/pts
 umount -l ${rootfs}/dev
@@ -266,7 +267,7 @@ if [[ "${sauce_cache_path}" != "" ]]; then
     mkdir -p ${rootfs}${sauce_cache_mnt_path}
 fi
 if [[ "${sauce_path}" != "" ]]; then
-    mkdir -p ${rootfs}/${sauce_cache_mnt_path}
+    mkdir -p ${rootfs}${rootfs_fancy_sauce_dir}
 fi
 
 mount -t proc none ${rootfs}/proc
@@ -278,7 +279,7 @@ if [[ "${sauce_cache_path}" != "" ]]; then
     mount -o bind ${sauce_cache_path} ${rootfs}${sauce_cache_mnt_path}
 fi
 if [[ "${sauce_path}" != "" ]]; then
-    mount -o bind ${deb_mirror} ${rootfs}/${sauce_cache_mnt_path}
+    mount -o bind ${sauce_path} ${rootfs}${rootfs_fancy_sauce_dir}
 fi
 
 cd ${rootfs}
@@ -346,7 +347,7 @@ echo "INSTALL DONE"
 if [ ${build_sauce_cache} -eq 1 ]
 then
     echo "Starting fancy sauce"
-    cd /opt/fancy-sauce
+    pushd ${rootfs_fancy_sauce_dir}
     echo "Preparing fancy-sauce"
     ./prereqs.sh
 
@@ -355,6 +356,7 @@ then
 
     echo "Downloading packages"
     ./download_package.sh
+    popd
 fi
 
 echo \"root:raspberry\" | chpasswd
@@ -384,8 +386,8 @@ sleep 15
 
 umount -l ${bootp}
 
-umount -l ${rootfs}/${sauce_cache_mnt_path}
-umount -l ${rootfs}/opt/fancy-sauce
+umount -l ${rootfs}${sauce_cache_mnt_path}
+umount -l ${rootfs}${rootfs_fancy_sauce_dir}
 umount -l ${rootfs}/usr/src/delivery
 umount -l ${rootfs}/dev/pts
 umount -l ${rootfs}/dev
