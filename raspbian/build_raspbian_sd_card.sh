@@ -169,6 +169,7 @@ do
         usage
         exit 1
         ;;
+
         -h|--help)
         usage
         exit 1
@@ -403,15 +404,6 @@ LANG=C chroot ${rootfs} /third-stage
 
 echo "deb ${deb_mirror} ${deb_release} main contrib non-free
 " > etc/apt/sources.list
-
-echo "#!/bin/bash
-aptitude update
-aptitude clean
-apt-get clean
-rm -f cleanup
-" > cleanup
-chmod +x cleanup
-LANG=C chroot ${rootfs} /cleanup
 
 cd ${rootfs}
 
