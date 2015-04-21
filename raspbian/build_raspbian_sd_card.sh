@@ -191,6 +191,8 @@ fi
 bootsize="64M"
 deb_release="wheezy"
 rootfs_fancy_sauce_dir="/opt/fancy-sauce"
+install_later_path="/etc/later/later.sh"
+install_later_cache_path="/etc/later/cache"
 
 relative_path=`dirname $0`
 
@@ -354,6 +356,10 @@ console-common	console-data/keymap/full	select	us
 echo "#!/bin/bash
 debconf-set-selections /debconf.set
 rm -f /debconf.set
+
+export FANCY_SAUCE_PATH=${rootfs_fancy_sauce_dir}
+export INSTALL_LATER_PATH=${install_later_path}
+export INSTALL_LATER_CACHE_PATH=${install_later_cache_path}
 
 cd /usr/src/delivery
 source functions.sh

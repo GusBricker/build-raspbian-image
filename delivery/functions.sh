@@ -25,6 +25,11 @@ function AptInstall()
     apt-get install -y --force-yes $@
 }
 
+function AptInstallLater()
+{
+    ${FANCY_SAUCE_PATH}/install_later.sh "$1" "${INSTALL_LATER_PATH}" "${INSTALL_LATER_CACHE_PATH}"
+}
+
 function GetFile()
 {
 	local base_url=$1
