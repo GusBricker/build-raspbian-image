@@ -1,8 +1,7 @@
 #!/bin/bash
 
-echo "------------------------------------------------------------------"
-echo "Users: Setting Up"
-echo "------------------------------------------------------------------"
+BannerEcho "Users: Setting Up"
+
 NEW_USER="pi"
 NEW_USER_PASSWORD="raspberry"
 adduser --disabled-password --gecos "" "${NEW_USER}"
@@ -12,6 +11,4 @@ chsh -s /bin/bash "${NEW_USER}"
 AptInstall sudo
 adduser "${NEW_USER}" sudo
 
-echo "------------------------------------------------------------------"
-echo "Users: Done"
-echo "------------------------------------------------------------------"
+BannerEcho "Users: Done"

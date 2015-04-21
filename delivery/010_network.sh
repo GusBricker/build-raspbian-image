@@ -1,8 +1,7 @@
 #!/bin/bash
 
-echo "------------------------------------------------------------------"
-echo "Networking: Setting Up"
-echo "------------------------------------------------------------------"
+BannerEcho "Networking: Setting Up"
+
 cat <<-__EOF__ > /etc/network/interfaces
 # This file describes the network interfaces available on your system
 # and how to activate them. For more information, see interfaces(5).
@@ -17,6 +16,4 @@ allow-hotplug usb0
 iface usb0 inet dhcp
 __EOF__
 
-echo "------------------------------------------------------------------"
-echo "Networking: Done"
-echo "------------------------------------------------------------------"
+BannerEcho "Networking: Done"

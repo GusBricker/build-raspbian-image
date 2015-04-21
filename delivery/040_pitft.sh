@@ -1,14 +1,10 @@
 #!/bin/bash
 
-echo "------------------------------------------------------------------"
-echo "PiTFT: Install starting"
-echo "------------------------------------------------------------------"
+BannerEcho "PiTFT: Installing"
 mkdir -p pitft
 pushd pitft
 
-echo "------------------------------------------------------------------"
-echo "PiTFT: Getting packages"
-echo "------------------------------------------------------------------"
+BannerEcho "PiTFT: Getting Packages"
 
 GetFile "http://adafruit-download.s3.amazonaws.com" "libraspberrypi-bin-adafruit.deb"
 GetFile "http://adafruit-download.s3.amazonaws.com" "libraspberrypi-dev-adafruit.deb"
@@ -17,15 +13,11 @@ GetFile "http://adafruit-download.s3.amazonaws.com" "libraspberrypi0-adafruit.de
 GetFile "http://adafruit-download.s3.amazonaws.com" "raspberrypi-bootloader-adafruit-112613.deb"
 
 
-echo "------------------------------------------------------------------"
-echo "PiTFT: Setting up new Kernel"
-echo "------------------------------------------------------------------"
+BannerEcho "PiTFT: Setting up New Kernel"
 dpkg -i -B *.deb
 
 
-echo "------------------------------------------------------------------"
-echo "PiTFT: Setting up LCD Drivers"
-echo "------------------------------------------------------------------"
+BannerEcho "PiTFT: Setting up LCD Drivers"
 
 echo "spi-bcm2708
 fbtft_device
@@ -52,9 +44,7 @@ mkdir -p /etc/X11/xorg.conf.d
 #" >> /home/pi/.profile
 
 
-echo "------------------------------------------------------------------"
-echo "PiTFT: Setting up Touchscreen"
-echo "------------------------------------------------------------------"
+BannerEcho "PiTFT: Setting up Touchscreen"
 
 AptInstall evtest tslib libts-bin
 
@@ -73,8 +63,6 @@ echo "stmpe_ts
 " >> /etc/modules
 
 
-echo "------------------------------------------------------------------"
-echo "PiTFT: Done"
-echo "------------------------------------------------------------------"
+BannerEcho "PiTFT: Done"
 
 popd

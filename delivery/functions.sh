@@ -1,5 +1,15 @@
 #!/bin/bash
 
+function BannerEcho()
+{
+    echo "------------------------------------------------------------------"
+    for arg in "$@"
+    do
+        echo "    $arg"
+    done
+    echo "------------------------------------------------------------------"
+}
+
 function AptUpdate()
 {
     apt-get update $@
