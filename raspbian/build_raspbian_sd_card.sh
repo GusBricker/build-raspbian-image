@@ -68,6 +68,7 @@ Options are:
     --fancy-sauce-build-cache:  Builds fancy-sauce cache. Path to fancy-sauce must be specified.
                                 A valid config for fancy sauce must also exist.
     --device:                   Build directly onto a SD card instead of creating a image.
+    --fancy-sauce-path:         Path to fancy sauce directory.
     --log:                      Log this scripts stdout and stderr streams to build.log file in cwd.
 __EOF__
 }
@@ -114,6 +115,7 @@ deb_mirror="http://archive.raspbian.org/raspbian"
 deb_local_mirror="http://localhost:3142/archive.raspbian.org/raspbian"
 sauce_cache_mnt_path="/opt/cache/"
 rootfs_mirror="${deb_local_mirror}"
+sauce_cache_path=""
 
 while [[ $# > 0 ]]
 do
@@ -121,17 +123,22 @@ do
     shift
 
     case $key in
-        --fancy-sauce-build-cache)
+        --fancy-sauce-path)
         if [ "x${1}" == "x" ]; then
             echo "Path to fancy sauce missing"
             usage
             exit 1
         fi
         sauce_path=$1
-        build_sauce_cache=1
-        echo "Building fancy sauce cache at: ${sauce_path}"
+        echo "Fancy sauce path: ${sauce_path}"
         shift
         ;;
+
+        --fancy-sauce-build-cache)
+        build_sauce_cache=1
+        echo "Building fancy sauce cache"
+        ;;
+
         --fancy-sauce-use-cache)
         if [ "x${1}" == "x" ]; then
             echo "Path to cache missing"
@@ -139,12 +146,12 @@ do
             exit 1
         fi
         sauce_cache_path=$1
-        deb_mirror="file://${sauce_cache_path}"
         deb_local_mirror="file://${sauce_cache_path}"
         rootfs_mirror="file:${sauce_cache_mnt_path}"
         echo "Using fancy sauce cache from: ${sauce_cache_path}"
         shift
         ;;
+
         --device)
         device=$1
         if ! [ -b ${device} ]; then
@@ -170,6 +177,12 @@ do
 done
 
 trap on_cancel SIGHUP SIGINT SIGTERM
+
+if [ "x${sauce_path}" == "x" ]; then
+    echo "Path to fancy sauce missing"
+    usage
+    exit 1
+fi
 
 if [ "${deb_local_mirror}" == "" ]; then
     deb_local_mirror=${deb_mirror}
