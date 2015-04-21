@@ -15,6 +15,11 @@ function AptUpdate()
     apt-get update $@
 }
 
+function AptCleanup()
+{
+    apt-get clean $@
+}
+
 function AptInstall()
 {
     apt-get install -y --force-yes $@
