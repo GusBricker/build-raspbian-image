@@ -68,6 +68,7 @@ Options are:
     --fancy-sauce-build-cache:  Builds fancy-sauce cache. Path to fancy-sauce must be specified.
                                 A valid config for fancy sauce must also exist.
     --device:                   Build directly onto a SD card instead of creating a image.
+    --log:                      Log this scripts stdout and stderr streams to build.log file in cwd.
 __EOF__
 }
 
@@ -89,6 +90,15 @@ function on_cancel()
     fi
 
     exit
+}
+
+# Start logging
+#   Redirects stdout and stderr streams to build.log file
+function start_logging()
+{
+    rm build.log
+    exec >  >(tee -a build.log)
+    exec 2> >(tee -a build.log>&2)
 }
 
 if [ ${EUID} -ne 0 ]; then
@@ -143,6 +153,11 @@ do
         fi
         shift
         ;;
+
+        --log)
+        start_logging
+        ;;
+
         *)
         usage
         exit 1
