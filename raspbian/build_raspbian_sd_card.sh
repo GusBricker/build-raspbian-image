@@ -75,6 +75,23 @@ __EOF__
 
 function on_cancel()
 {
+    local exit_code=${1:-1}
+
+    echo "Unmounting file systems"
+    umount -l ${rootfs}${sauce_cache_mnt_path}
+    umount -l ${rootfs}${rootfs_fancy_sauce_dir}
+    umount -l ${rootfs}/usr/src/delivery
+    umount -l ${rootfs}/dev/pts
+    umount -l ${rootfs}/dev
+    umount -l ${rootfs}/sys
+    umount -l ${rootfs}/proc
+
+    umount -l ${rootfs}
+    umount -l ${bootfs}
+
+    umount -l ${rootp}
+    umount -l ${bootp}
+
     if [[ "${loop_device}" != "" ]]; then
         echo "freeing loop device ${loop_device}"
         losetup -d ${loop_device}
@@ -90,7 +107,7 @@ function on_cancel()
         echo "freeing loop device ${bootp}"
     fi
 
-    exit
+    exit ${exit_code}
 }
 
 # Start logging
@@ -260,7 +277,7 @@ else
         rootp=${device}p2
         if ! [ -b ${bootp} ]; then
             echo "uh, oh, something went wrong, can't find bootpartition neither as ${device}1 nor as ${device}p1, exiting."
-            exit 1
+            on_cancel 1
         fi
     else
         bootp=${device}1
@@ -271,6 +288,9 @@ fi
 mkfs.vfat ${bootp}
 mkfs.ext4 ${rootp}
 
+echo "Cleaning up artifacts of previous builds!"
+# Belt and braces, shouldnt be mounted already, but just in case!
+umount -l ${rootp}
 umount -l ${bootp}
 
 umount -l ${rootfs}${sauce_cache_mnt_path}
@@ -282,12 +302,12 @@ umount -l ${rootfs}/sys
 umount -l ${rootfs}/proc
 
 umount -l ${rootfs}
-umount -l ${rootp}
+umount -l ${bootfs}
 
-
+rm -r --one-file-system --preserve-root ${rootfs}
 mkdir -p ${rootfs}
 
-mount ${rootp} ${rootfs}
+mount ${rootp} ${rootfs} || on_cancel 1
 
 mkdir -p ${rootfs}/proc
 mkdir -p ${rootfs}/sys
@@ -301,25 +321,25 @@ if [[ "${sauce_path}" != "" ]]; then
     mkdir -p ${rootfs}${rootfs_fancy_sauce_dir}
 fi
 
-mount -t proc none ${rootfs}/proc
-mount -t sysfs none ${rootfs}/sys
-mount -o bind /dev ${rootfs}/dev
-mount -o bind /dev/pts ${rootfs}/dev/pts
-mount -o bind ${delivery_path} ${rootfs}/usr/src/delivery
+mount -t proc none ${rootfs}/proc || on_cancel 1
+mount -t sysfs none ${rootfs}/sys || on_cancel 1
+mount -o bind /dev ${rootfs}/dev || on_cancel 1
+mount -o bind /dev/pts ${rootfs}/dev/pts || on_cancel 1
+mount -o bind ${delivery_path} ${rootfs}/usr/src/delivery || on_cancel 1
 if [[ "${sauce_cache_path}" != "" ]]; then
-    mount -o bind ${sauce_cache_path} ${rootfs}${sauce_cache_mnt_path}
+    mount -o bind ${sauce_cache_path} ${rootfs}${sauce_cache_mnt_path} || on_cancel 1
 fi
 if [[ "${sauce_path}" != "" ]]; then
-    mount -o bind ${sauce_path} ${rootfs}${rootfs_fancy_sauce_dir}
+    mount -o bind ${sauce_path} ${rootfs}${rootfs_fancy_sauce_dir} || on_cancel 1
 fi
 
 cd ${rootfs}
 
-debootstrap --foreign --arch armhf ${deb_release} ${rootfs} ${deb_local_mirror}
+debootstrap --foreign --arch armhf ${deb_release} ${rootfs} ${deb_local_mirror} || on_cancel 1
 cp /usr/bin/qemu-arm-static usr/bin/
 LANG=C chroot ${rootfs} /debootstrap/debootstrap --second-stage
 
-mount ${bootp} ${bootfs}
+mount ${bootp} ${bootfs} || on_cancel 1
 
 if [[ "${sauce_cache_path}" != "" ]]; then
     echo "deb ${rootfs_mirror} ${deb_release} main" > etc/apt/sources.list
@@ -378,7 +398,13 @@ rpi-update
 # execute install script at mounted external media (delivery contents folder)
 cd /usr/src/delivery
 ./install.sh
-echo "INSTALL DONE"
+if [ $? -ne 0 ]
+then
+    echo "INSTALL FAILED!"
+    exit 1
+else
+    echo "INSTALL DONE"
+fi
 
 if [ ${build_sauce_cache} -eq 1 ]
 then
