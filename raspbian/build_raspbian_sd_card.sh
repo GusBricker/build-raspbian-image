@@ -78,6 +78,7 @@ function on_cancel()
     local exit_code=${1:-1}
 
     echo "Unmounting file systems"
+    umount -l ${rootfs}${build_mnt_path}
     umount -l ${rootfs}${sauce_cache_mnt_path}
     umount -l ${rootfs}${rootfs_fancy_sauce_dir}
     umount -l ${rootfs}/usr/src/delivery
@@ -230,6 +231,8 @@ rootfs="${buildenv}/rootfs"
 bootfs="${rootfs}/boot"
 
 today=`date +%Y%m%d`
+build_path="${buildenv}/build"
+build_mnt_path="/opt/build"
 
 image=""
 
@@ -293,6 +296,7 @@ echo "Cleaning up artifacts of previous builds!"
 umount -l ${rootp}
 umount -l ${bootp}
 
+umount -l ${rootfs}${build_mnt_path}
 umount -l ${rootfs}${sauce_cache_mnt_path}
 umount -l ${rootfs}${rootfs_fancy_sauce_dir}
 umount -l ${rootfs}/usr/src/delivery
@@ -309,6 +313,8 @@ mkdir -p ${rootfs}
 
 mount ${rootp} ${rootfs} || on_cancel 1
 
+mkdir -p ${build_path}
+mkdir -p ${rootfs}${build_mnt_path}
 mkdir -p ${rootfs}/proc
 mkdir -p ${rootfs}/sys
 mkdir -p ${rootfs}/dev
@@ -326,6 +332,7 @@ mount -t sysfs none ${rootfs}/sys || on_cancel 1
 mount -o bind /dev ${rootfs}/dev || on_cancel 1
 mount -o bind /dev/pts ${rootfs}/dev/pts || on_cancel 1
 mount -o bind ${delivery_path} ${rootfs}/usr/src/delivery || on_cancel 1
+mount -o bind ${build_path} ${rootfs}${build_mnt_path} || on_cancel 1
 if [[ "${sauce_cache_path}" != "" ]]; then
     mount -o bind ${sauce_cache_path} ${rootfs}${sauce_cache_mnt_path} || on_cancel 1
 fi
@@ -439,6 +446,7 @@ sleep 15
 
 umount -l ${bootp}
 
+umount -l ${rootfs}${build_mnt_path}
 umount -l ${rootfs}${sauce_cache_mnt_path}
 umount -l ${rootfs}${rootfs_fancy_sauce_dir}
 umount -l ${rootfs}/usr/src/delivery
